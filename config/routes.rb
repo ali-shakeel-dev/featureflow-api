@@ -1,11 +1,44 @@
 Rails.application.routes.draw do
-  devise_for :users
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  mount_devise_token_auth_for 'User', at: 'api/v1/auth'
 
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
-  get "up" => "rails/health#show", as: :rails_health_check
+  namespace :api do
+    namespace :v1 do
+      # Public routes
+      resources :ideas, only: [:index, :show] do
+        collection do
+          get :trending
+          get :recent
+        end
+        resources :comments, only: [:index, :create, :destroy]
+        member do
+          post :vote
+          delete :unvote
+        end
+      end
 
-  # Defines the root path route ("/")
-  # root "posts#index"
+      resources :roadmap_items, only: [:index, :show]
+
+      # Authenticated user routes
+      resources :users, only: [:show, :update] do
+        member do
+          get :my_ideas
+          get :my_votes
+        end
+      end
+
+      # Admin routes
+      namespace :admin do
+        resources :ideas, only: [:index, :update, :destroy] do
+          member do
+            patch :change_status
+          end
+        end
+        resources :roadmap_items, only: [:index, :create, :update, :destroy]
+        resources :users, only: [:index, :show, :update, :destroy]
+      end
+
+      # Create idea (requires auth)
+      post '/ideas', to: 'ideas#create'
+    end
+  end
 end
